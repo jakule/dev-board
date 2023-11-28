@@ -1,5 +1,9 @@
+/.idea
+
 /target
 /migration/target
+
+/node_modules
 
 # Ignore log files.
 /logs
