@@ -1,0 +1,6 @@
+/target
+/migration/target
+
+# Ignore log files.
+/logs
+!/logs/.gitkeep
