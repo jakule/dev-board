@@ -1,0 +1,14 @@
+{
+  "name": "dev-board",
+  "version": "0.0.1",
+  "private": "true",
+  "workspaces": [
+    "web"
+  ],
+  "scripts": {
+    "test": "npm run -w web test",
+    "dev": "npm run -w web dev",
+    "build": "npm run -w web build",
+    "lint": "npm run -w web lint"
+  }
+}
