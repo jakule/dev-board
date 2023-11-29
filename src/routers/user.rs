@@ -11,7 +11,7 @@ use salvo::{
     Request, Response,
 };
 
-#[endpoint( tags("comm"),)]
+#[endpoint(tags("comm"))]
 pub async fn post_login(req: JsonBody<UserLoginRequest>, res: &mut Response) {
     let result: AppResult<UserLoginResponse> = user::login(req.0).await;
     match result {
@@ -27,7 +27,7 @@ pub async fn post_login(req: JsonBody<UserLoginRequest>, res: &mut Response) {
     }
 }
 
-#[endpoint( tags("users"))]
+#[endpoint(tags("users"))]
 pub async fn post_add_user(req: JsonBody<UserAddRequest>, res: &mut Response) {
     let result = user::add_user(req.0).await;
     match result {
@@ -49,7 +49,7 @@ pub async fn put_update_user(req: &mut Request, res: &mut Response) {
     }
 }
 
-#[endpoint( tags("users"),)]
+#[endpoint(tags("users"))]
 pub async fn delete_user(id: PathParam<String>, res: &mut Response) {
     let result = user::delete_user(id.0).await;
     match result {
@@ -58,7 +58,7 @@ pub async fn delete_user(id: PathParam<String>, res: &mut Response) {
     }
 }
 
-#[endpoint( tags("users"),)]
+#[endpoint(tags("users"))]
 pub async fn get_users(res: &mut Response) {
     let result = user::users().await;
     match result {

@@ -11,11 +11,11 @@ mod app_response;
 mod config;
 mod db;
 mod dtos;
-mod services;
-mod utils;
 mod entities;
 mod middleware;
 mod routers;
+mod services;
+mod utils;
 
 #[tokio::main]
 async fn main() {

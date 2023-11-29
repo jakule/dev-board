@@ -4,38 +4,30 @@ use salvo::{
     Router,
 };
 
-use self::{
-    demo::hello,
-    user::{
-        delete_user, get_users, post_add_user, post_login, put_update_user,
-    },
-};
-pub mod demo;
-pub mod user;
+use self::user::{delete_user, get_users, post_add_user, post_login, put_update_user};
+
 mod static_routers;
+pub mod user;
 
 pub fn router() -> Router {
-    let mut no_auth_routers = vec![
-        Router::with_path("/api/login").post(post_login),
-    ];
+    let mut no_auth_routers = vec![Router::with_path("/api/login").post(post_login)];
 
     let _cors_handler = cors_middleware();
 
-    let mut need_auth_routers = vec![
-        Router::with_path("/api/users").get(get_users)
+    let mut need_auth_routers = vec![Router::with_path("/api/users")
+        .get(get_users)
         .post(post_add_user)
         .push(
             Router::with_path("<id>")
                 .put(put_update_user)
                 .delete(delete_user),
-        ),
-    ];
+        )];
 
     let router = Router::new()
         //.hoop(_cors_handler)
         .hoop(Logger::new())
         .hoop(CatchPanic::new())
-        .get(hello)
+        .append(&mut static_routers::create_static_routers())
         .append(&mut no_auth_routers)
         .push(
             Router::new()

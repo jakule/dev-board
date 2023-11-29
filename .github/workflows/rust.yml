@@ -18,6 +18,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Create webassets stub
+      run: mkdir -p web/build && touch web/build/index.html
     - name: Build
       run: cargo build --verbose
     - name: Run tests

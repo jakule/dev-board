@@ -1,5 +1,5 @@
-use salvo::cors::{AllowHeaders, AllowMethods, Cors, CorsHandler};
 use crate::config::CFG;
+use salvo::cors::{AllowHeaders, AllowMethods, Cors, CorsHandler};
 
 pub fn cors_middleware() -> CorsHandler {
     let cors_handler = Cors::new()

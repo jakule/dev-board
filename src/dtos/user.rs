@@ -1,4 +1,4 @@
-use salvo::prelude::{ToSchema, Extractible};
+use salvo::prelude::{Extractible, ToSchema};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -15,7 +15,7 @@ pub struct UserLoginRequest {
     pub password: String,
 }
 
-#[derive(Debug, Deserialize,Extractible,ToSchema, Default)]
+#[derive(Debug, Deserialize, Extractible, ToSchema, Default)]
 #[salvo(extract(default_source(from = "body", format = "json")))]
 pub struct UserUpdateRequest {
     #[salvo(extract(source(from = "param")))]
@@ -23,7 +23,6 @@ pub struct UserUpdateRequest {
     pub username: String,
     pub password: String,
 }
-
 
 #[derive(Debug, Serialize, ToSchema, Default)]
 pub struct UserResponse {

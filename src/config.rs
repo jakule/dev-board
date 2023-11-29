@@ -65,7 +65,7 @@ impl Configs {
             Ok(s) => s,
             Err(e) => panic!("Failed to read configuration file, error message:{}", e),
         };
-        match toml::from_str(&cfg_contents){
+        match toml::from_str(&cfg_contents) {
             Ok(c) => c,
             Err(e) => panic!("Failed to parse configuration file, error message:{}", e),
         }

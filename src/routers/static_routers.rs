@@ -1,14 +1,17 @@
 use rust_embed::RustEmbed;
-use salvo::{Router, serve_static::static_embed, endpoint, Response, http::ResBody, hyper::body::Bytes};
+use salvo::{
+    endpoint, http::ResBody, hyper::body::Bytes, serve_static::static_embed, Response, Router,
+};
+
 #[derive(RustEmbed)]
-#[folder = "assets"]
+#[folder = "web/build"]
 struct Assets;
 
-#[allow(dead_code)]
 pub fn create_static_routers() -> Vec<Router> {
-    let static_router = Router::with_path("assets/<**path>").get(static_embed::<Assets>());
+    let static_router =
+        Router::with_path("<**path>").get(static_embed::<Assets>().fallback("index.html"));
     let icon_router = Router::with_path("favicon.ico").get(get_icon);
-    vec![static_router,icon_router]
+    vec![static_router, icon_router]
 }
 
 #[endpoint(tags("comm"))]
