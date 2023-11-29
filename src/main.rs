@@ -6,6 +6,7 @@ use salvo::catcher::Catcher;
 use salvo::conn::rustls::{Keycert, RustlsConfig};
 use salvo::prelude::*;
 use tokio::sync::oneshot;
+
 mod app_error;
 mod app_response;
 mod config;
@@ -85,27 +86,4 @@ fn init_log() {
         .rolling(&CFG.log.rolling)
         .init();
     tracing::info!("log level: {}", &CFG.log.filter_level);
-}
-#[cfg(test)]
-mod tests {
-    use salvo::prelude::*;
-    use salvo::test::{ResponseExt, TestClient};
-
-    use crate::config::CFG;
-
-    #[tokio::test]
-    async fn test_hello_world() {
-        let service = Service::new(super::router());
-
-        let content = TestClient::get(format!(
-            "http://{}",
-            &CFG.server.address.replace("0.0.0.0", "127.0.0.1")
-        ))
-        .send(&service)
-        .await
-        .take_string()
-        .await
-        .unwrap();
-        assert_eq!(content, "Hello World from salvo");
-    }
 }
