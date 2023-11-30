@@ -8,6 +8,7 @@ use self::user::{delete_user, get_users, post_add_user, post_login, put_update_u
 
 mod static_routers;
 pub mod user;
+mod pr;
 
 pub fn router() -> Router {
     let mut no_auth_routers = vec![Router::with_path("/api/login").post(post_login)];
@@ -23,12 +24,15 @@ pub fn router() -> Router {
                 .delete(delete_user),
         )];
 
+    let mut pr_routers = vec![Router::with_path("/api/prs").get(pr::get_prs)];
+
     let router = Router::new()
         //.hoop(_cors_handler)
         .hoop(Logger::new())
         .hoop(CatchPanic::new())
-        .append(&mut static_routers::create_static_routers())
         .append(&mut no_auth_routers)
+        .append(&mut pr_routers)
+        .append(&mut static_routers::create_static_routers())
         .push(
             Router::new()
                 .append(&mut need_auth_routers)

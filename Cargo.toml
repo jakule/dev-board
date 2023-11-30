@@ -21,3 +21,4 @@ toml = "0.8.0"
 tracing = "0.1"
 uuid = { version = "1.4.1", features = ["v4", "fast-rng", "macro-diagnostics"] }
 validator = { version = "0.16", features = ["derive"] }
+serde_derive = { version = "1.0.193", features = [] }

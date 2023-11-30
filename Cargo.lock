@@ -598,6 +598,7 @@ dependencies = [
  "rust-embed",
  "salvo",
  "serde",
+ "serde_derive",
  "sqlx",
  "thiserror",
  "time",
