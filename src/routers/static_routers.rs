@@ -8,9 +8,9 @@ use salvo::{
 struct Assets;
 
 pub fn create_static_routers() -> Vec<Router> {
-    let main_page_router = Router::with_path("/").get(static_embed::<Assets>().fallback("index.html"));
-    let static_router =
-        Router::with_path("<**path>").get(static_embed::<Assets>());
+    let main_page_router =
+        Router::with_path("/").get(static_embed::<Assets>().fallback("index.html"));
+    let static_router = Router::with_path("<**path>").get(static_embed::<Assets>());
     let icon_router = Router::with_path("favicon.ico").get(get_icon);
     vec![main_page_router, static_router, icon_router]
 }

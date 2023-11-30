@@ -11,8 +11,8 @@ pub async fn prs() -> AppResult<Vec<PrResponse>> {
             SELECT id, title FROM pr
             "#,
     )
-        .fetch_all(db)
-        .await?;
+    .fetch_all(db)
+    .await?;
     let res = prs
         .into_iter()
         .map(|pr| PrResponse {

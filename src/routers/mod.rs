@@ -6,9 +6,9 @@ use salvo::{
 
 use self::user::{delete_user, get_users, post_add_user, post_login, put_update_user};
 
+mod pr;
 mod static_routers;
 pub mod user;
-mod pr;
 
 pub fn router() -> Router {
     let mut no_auth_routers = vec![Router::with_path("/api/login").post(post_login)];

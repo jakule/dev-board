@@ -1,6 +1,6 @@
-use salvo::{endpoint, Response};
 use crate::app_response::{ErrRes, Res};
 use crate::services::pr;
+use salvo::{endpoint, Response};
 
 #[endpoint(tags("prs"))]
 pub async fn get_prs(res: &mut Response) {
