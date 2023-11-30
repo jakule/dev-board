@@ -1,3 +1,4 @@
+use clap::{command, arg};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::{fs::File, io::Read, path::Path};
@@ -47,17 +48,29 @@ pub struct Cert {
     pub key: String,
 }
 
-const CONFIG_FILE: &str = "config/config.toml";
+const DEFAULT_CONFIG_FILE: &str = "config/config.toml";
 
 pub static CFG: Lazy<Configs> = Lazy::new(self::Configs::init);
 
 impl Configs {
     pub fn init() -> Self {
-        let mut file = match File::open(CONFIG_FILE) {
+        let matches = command!()
+            .arg(
+                arg!(
+                -c --config <FILE> "Sets a custom config file"
+            )
+                    .required(false)
+                    .default_value(DEFAULT_CONFIG_FILE)
+            )
+            .get_matches();
+
+        let config_file = matches.get_one::<String>("config").unwrap();
+
+        let mut file = match File::open(config_file) {
             Ok(f) => f,
             Err(e) => panic!(
                 "Configuration file does not exist:{},error message:{}",
-                CONFIG_FILE, e
+                config_file, e
             ),
         };
         let mut cfg_contents = String::new();

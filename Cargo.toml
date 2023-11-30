@@ -3,6 +3,9 @@ name = "dev-board"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+panic = 'abort'
+
 [dependencies]
 anyhow = "1.0.75"
 argon2 = { version = "0.5.2", features = [] }
@@ -22,3 +25,4 @@ tracing = "0.1"
 uuid = { version = "1.4.1", features = ["v4", "fast-rng", "macro-diagnostics"] }
 validator = { version = "0.16", features = ["derive"] }
 serde_derive = { version = "1.0.193", features = [] }
+clap = { version = "4.4.10", features = ["cargo"] }
