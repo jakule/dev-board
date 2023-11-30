@@ -9,4 +9,18 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: postgres
     ports:
-      - 5432:5432
+      - "5432:5432"
+
+  web:
+    build: .
+    image: dev-board-web
+    restart: on-failure
+    environment:
+      RUST_BACKTRACE: 1
+    volumes:
+      - type: bind
+        source: ./config/
+        target: /app/config/
+
+    ports:
+      - "5800:5800"
