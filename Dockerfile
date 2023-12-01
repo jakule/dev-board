@@ -32,7 +32,7 @@ COPY . .
 COPY --from=ui-build /app/web/ ./web/web/build
 
 ENV SQLX_OFFLINE=true
-RUN cargo build --release
+RUN touch /app/src/main.rs && cargo build --release
 
 # Build the runtime image
 
