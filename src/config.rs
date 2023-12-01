@@ -1,4 +1,4 @@
-use clap::{command, arg};
+use clap::{arg, command};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::{fs::File, io::Read, path::Path};
@@ -57,10 +57,10 @@ impl Configs {
         let matches = command!()
             .arg(
                 arg!(
-                -c --config <FILE> "Sets a custom config file"
-            )
-                    .required(false)
-                    .default_value(DEFAULT_CONFIG_FILE)
+                    -c --config <FILE> "Sets a custom config file"
+                )
+                .required(false)
+                .default_value(DEFAULT_CONFIG_FILE),
             )
             .get_matches();
 

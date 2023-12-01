@@ -1,3 +1,4 @@
+use crate::github::github::fetch_pull_requests;
 use crate::db::init_db_conn;
 use crate::middleware::handle_404::handle_404;
 use crate::routers::router;
@@ -5,7 +6,9 @@ use config::{CERT_KEY, CFG};
 use salvo::catcher::Catcher;
 use salvo::conn::rustls::{Keycert, RustlsConfig};
 use salvo::prelude::*;
+use std::time::Instant;
 use tokio::sync::oneshot;
+use tokio::time::{interval, Duration};
 
 mod app_error;
 mod app_response;
@@ -13,10 +16,38 @@ mod config;
 mod db;
 mod dtos;
 mod entities;
+mod github;
 mod middleware;
 mod routers;
 mod services;
 mod utils;
+
+async fn perform_action(mut rx: oneshot::Receiver<()>) {
+    let mut interval = interval(Duration::from_secs(15));
+
+    let github_api_token =
+        std::env::var("GITHUB_API_TOKEN").expect("Missing GITHUB_API_TOKEN env var");
+
+    loop {
+        tokio::select! {
+            _ = &mut rx => {
+                println!("Shutting down...");
+                break;
+            }
+            _ = interval.tick() => {
+                println!("Performing action at {:?}", Instant::now());
+
+                let data = fetch_pull_requests(&github_api_token, None).await;
+                match data {
+                    Ok(data) => println!("data: {:?}", data),
+                    Err(e) => {
+                        println!("error: {:?}", e);
+                    }
+                }
+            }
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -70,9 +101,16 @@ async fn main() {
             tokio::task::spawn(server);
         }
     };
+
+    let (tx_background, rx_background) = oneshot::channel();
+    // Start background tasks here
+    tokio::spawn(perform_action(rx_background));
+
     // Wait for Ctrl-C
     tokio::signal::ctrl_c().await.unwrap();
+
     // Then, start the shutdown...
+    let _ = tx_background.send(());
     let _ = tx.send(());
 }
 
