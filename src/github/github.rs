@@ -9,7 +9,7 @@ type DateTime = String;
 #[graphql(
     schema_path = "src/github/schema.docs.graphql",
     query_path = "src/github/gh_issue.graphql",
-    response_derives = "Debug"
+    response_derives = "Debug,Serialize"
 )]
 pub struct Issues;
 
@@ -39,6 +39,8 @@ pub async fn fetch_pull_requests(
             .await
             .unwrap();
 
-    println!("{:#?}", response_body);
+    // let json = serde_json::to_string(&response_body).unwrap();
+    // println!("{}", json);
+    // println!("{:#?}", response_body);
     Ok(response_body)
 }

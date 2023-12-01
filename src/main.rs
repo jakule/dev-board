@@ -1,8 +1,12 @@
-use crate::github::github::fetch_pull_requests;
 use crate::db::init_db_conn;
+use crate::github::github::fetch_pull_requests;
+use crate::github::github::Issues;
 use crate::middleware::handle_404::handle_404;
 use crate::routers::router;
+use crate::services::pr::add_pr;
 use config::{CERT_KEY, CFG};
+use futures::StreamExt;
+use graphql_client::GraphQLQuery;
 use salvo::catcher::Catcher;
 use salvo::conn::rustls::{Keycert, RustlsConfig};
 use salvo::prelude::*;
@@ -22,8 +26,25 @@ mod routers;
 mod services;
 mod utils;
 
-async fn perform_action(mut rx: oneshot::Receiver<()>) {
-    let mut interval = interval(Duration::from_secs(15));
+async fn process_data(data: <Issues as GraphQLQuery>::ResponseData) {
+    let prs = data.repository.unwrap().pull_requests.edges.unwrap();
+
+    let futures = futures::stream::iter(prs).for_each_concurrent(None, |edge| async move {
+        let data = serde_json::to_string(&edge).unwrap();
+        println!("edge: {}", data);
+        let pr = edge.as_ref().unwrap().node.as_ref().unwrap();
+        add_pr(pr.number.to_string(), pr.title.clone(), data)
+            .await
+            .expect("TODO: panic message");
+    });
+
+    futures.await;
+}
+
+use anyhow::Result as AnyhowResult;
+
+async fn perform_action(mut rx: oneshot::Receiver<()>) -> AnyhowResult<()> {
+    let mut interval = interval(Duration::from_secs(15*60));
 
     let github_api_token =
         std::env::var("GITHUB_API_TOKEN").expect("Missing GITHUB_API_TOKEN env var");
@@ -32,14 +53,21 @@ async fn perform_action(mut rx: oneshot::Receiver<()>) {
         tokio::select! {
             _ = &mut rx => {
                 println!("Shutting down...");
-                break;
+                break Ok(());
             }
             _ = interval.tick() => {
                 println!("Performing action at {:?}", Instant::now());
 
-                let data = fetch_pull_requests(&github_api_token, None).await;
-                match data {
-                    Ok(data) => println!("data: {:?}", data),
+                let result = fetch_pull_requests(&github_api_token, None).await;
+                match result {
+                    Ok(response) => {
+                        match response.data {
+                            Some(data) => {
+                                tokio::spawn(process_data(data));
+                            },
+                            None => println!("No data found in response"),
+                        }
+                    },
                     Err(e) => {
                         println!("error: {:?}", e);
                     }

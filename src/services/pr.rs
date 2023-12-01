@@ -22,3 +22,20 @@ pub async fn prs() -> AppResult<Vec<PrResponse>> {
         .collect::<Vec<_>>();
     Ok(res)
 }
+
+pub async fn add_pr(id: String, title: String, data: String) -> AppResult<()> {
+    let db = DB.get().ok_or(anyhow::anyhow!(""))?;
+    sqlx::query!(
+        r#"
+            INSERT INTO pr (id, title, body)
+            VALUES ($1, $2, $3) ON CONFLICT (id) DO
+            UPDATE SET title = $2, body = $3
+            "#,
+        id,
+        title,
+        data
+    )
+    .execute(db)
+    .await?;
+    Ok(())
+}

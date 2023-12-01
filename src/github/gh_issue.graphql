@@ -1,6 +1,6 @@
 query Issues($owner: String!, $name: String!, $cursor: String) {
   repository(owner: $owner, name: $name) {
-    pullRequests(first: 30, baseRefName: "master", states: OPEN, after: $cursor, orderBy: {field: CREATED_AT, direction: DESC}) {
+    pullRequests(first: 5, baseRefName: "master", states: OPEN, after: $cursor, orderBy: {field: CREATED_AT, direction: DESC}) {
       pageInfo {
         hasNextPage
         endCursor
