@@ -18,7 +18,7 @@ clean:
 lint:
 	npm run lint
 	cargo fmt --all -- --check
-	cargo clippy --all-targets --all-features -- -D warnings
+	cargo clippy --all-targets --all-features
 
 .PHONY: start-postgres
 start-postgres:

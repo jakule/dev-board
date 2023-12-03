@@ -44,7 +44,7 @@ async fn process_data(data: <Issues as GraphQLQuery>::ResponseData) {
 use anyhow::Result as AnyhowResult;
 
 async fn perform_action(mut rx: oneshot::Receiver<()>) -> AnyhowResult<()> {
-    let mut interval = interval(Duration::from_secs(15*60));
+    let mut interval = interval(Duration::from_secs(15 * 60));
 
     let github_api_token =
         std::env::var("GITHUB_API_TOKEN").expect("Missing GITHUB_API_TOKEN env var");
