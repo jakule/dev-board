@@ -14,6 +14,10 @@ clean:
 	rm -rf node_modules web/node_modules web/build
 	cargo clean
 
+.PHONY: fmt
+fmt:
+	cargo fmt
+
 .PHONY: lint
 lint:
 	npm run lint

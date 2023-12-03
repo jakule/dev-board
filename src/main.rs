@@ -1,5 +1,6 @@
 use crate::db::init_db_conn;
 use crate::github::github::fetch_pull_requests;
+use crate::github::github::issues::PullRequestState;
 use crate::github::github::Issues;
 use crate::middleware::handle_404::handle_404;
 use crate::routers::router;
@@ -32,8 +33,17 @@ async fn process_data(data: <Issues as GraphQLQuery>::ResponseData) {
     let futures = futures::stream::iter(prs).for_each_concurrent(None, |edge| async move {
         let data = serde_json::to_string(&edge).unwrap();
         println!("edge: {}", data);
+
         let pr = edge.as_ref().unwrap().node.as_ref().unwrap();
-        add_pr(pr.number.to_string(), pr.title.clone(), data)
+
+        let state_string = match pr.state {
+            PullRequestState::OPEN => "OPEN".to_string(),
+            PullRequestState::CLOSED => "CLOSED".to_string(),
+            PullRequestState::MERGED => "MERGED".to_string(),
+            _ => "UNKNOWN".to_string(),
+        };
+
+        add_pr(pr.number.to_string(), pr.title.clone(), data, state_string)
             .await
             .expect("TODO: panic message");
     });
