@@ -1,6 +1,5 @@
 use ::reqwest::Client;
 use graphql_client::{reqwest::post_graphql, GraphQLQuery, Response};
-use std::error::Error;
 
 type URI = String;
 type DateTime = String;
@@ -14,11 +13,17 @@ type DateTime = String;
 pub struct Issues;
 
 pub async fn fetch_pull_requests(
-    token: &String,
+    token: String,
     cursor: Option<String>,
-) -> Result<Response<<Issues as GraphQLQuery>::ResponseData>, Box<dyn Error>> {
+) -> Result<
+    (
+        Response<<Issues as GraphQLQuery>::ResponseData>,
+        Option<String>,
+    ),
+    reqwest::Error,
+> {
     let variables = issues::Variables {
-        cursor,
+        cursor: cursor.clone(),
         owner: "gravitational".to_string(),
         name: "teleport".to_string(),
     };
@@ -39,8 +44,17 @@ pub async fn fetch_pull_requests(
             .await
             .unwrap();
 
-    // let json = serde_json::to_string(&response_body).unwrap();
-    // println!("{}", json);
-    // println!("{:#?}", response_body);
-    Ok(response_body)
+    let next_cursor = response_body
+        .data
+        .as_ref()
+        .unwrap()
+        .repository
+        .as_ref()
+        .unwrap()
+        .pull_requests
+        .page_info
+        .end_cursor
+        .clone();
+
+    Ok((response_body, next_cursor))
 }

@@ -8,3 +8,10 @@ pub struct Pr {
     pub score: f64,
     pub opened_at: chrono::NaiveDateTime,
 }
+
+#[derive(FromRow, Serialize, Debug)]
+pub struct SyncMetadata {
+    pub owner: String,
+    pub repo: String,
+    pub last_cursor: Option<String>,
+}

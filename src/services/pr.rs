@@ -10,7 +10,7 @@ pub async fn prs() -> AppResult<Vec<PrResponse>> {
         Pr,
         r#"
             SELECT id, title, score, opened_at FROM prs
-            ORDER BY score DESC
+            ORDER BY prs.opened_at + interval '1' minute * FLOOR(prs.score * 60)
             LIMIT 10
             "#,
     )
@@ -57,4 +57,42 @@ pub async fn add_pr(
     .execute(db)
     .await?;
     Ok(())
+}
+
+pub async fn update_sync_metadata(
+    owner: String,
+    repo: String,
+    last_cursor: Option<String>,
+) -> AppResult<()> {
+    let db = DB.get().ok_or(anyhow::anyhow!(""))?;
+
+    sqlx::query!(
+        r#"
+            INSERT INTO pr_sync_metadata (owner, repo, last_cursor)
+            VALUES ($1, $2, $3) ON CONFLICT (owner, repo) DO
+            UPDATE SET last_cursor = $3
+            "#,
+        owner,
+        repo,
+        last_cursor,
+    )
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
+pub async fn get_sync_metadata(owner: String, repo: String) -> AppResult<Option<String>> {
+    let db = DB.get().ok_or(anyhow::anyhow!(""))?;
+
+    let res = sqlx::query!(
+        r#"
+            SELECT last_cursor FROM pr_sync_metadata
+            WHERE owner = $1 AND repo = $2
+            "#,
+        owner,
+        repo,
+    )
+    .fetch_optional(db)
+    .await?;
+    Ok(res.map(|r| r.last_cursor).flatten())
 }

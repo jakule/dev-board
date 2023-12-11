@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	let prsResponse: { data: { id: number; title: string;
-		score: number, opened_at: Date, should_close_at: Date }[] };
+	let prsResponse: {
+		data: { id: number; title: string; score: number; opened_at: Date; should_close_at: Date }[];
+	};
 
 	onMount(async function () {
 		const response = await fetch('/api/prs');
@@ -30,7 +31,7 @@
 			{#if prsResponse !== undefined}
 				{#each prsResponse.data as pr}
 					<tr>
-						<td><a href='https://github.com/gravitational/teleport/pull/{pr.id}'>{pr.id}</a></td>
+						<td><a href="https://github.com/gravitational/teleport/pull/{pr.id}">{pr.id}</a></td>
 						<td>{pr.title}</td>
 						<td>{pr.score}</td>
 						<td>{pr.opened_at}</td>
