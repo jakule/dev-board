@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO pr (id, title, data, status, score, opened_at)\n            VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO\n            UPDATE SET title = $2, data = $3, status = $4, score = $5, opened_at = $6\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Float8",
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d1aa73ce143b4a66de81e9a17ad4ae0d9770a8df2ed617b4005dce195216ed75"
+}
