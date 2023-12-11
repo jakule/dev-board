@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, title, score, opened_at FROM prs\n            ORDER BY score DESC\n            LIMIT 10\n            ",
+  "query": "\n            SELECT id, title, score, opened_at FROM prs\n            ORDER BY prs.opened_at + interval '1' minute * FLOOR(prs.score * 60)\n            LIMIT 10\n            ",
   "describe": {
     "columns": [
       {
@@ -34,5 +34,5 @@
       false
     ]
   },
-  "hash": "78f3d83529a83fedc8f074645e1dc32951dcc6f0f374bd5f550ac22922cf2849"
+  "hash": "6b2909929da2fef8cd6d6a4e6bc0ffcc3b2f5cf2f5bcc09017b0065b6d84c9a2"
 }
