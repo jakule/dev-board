@@ -27,3 +27,20 @@ lint:
 .PHONY: start-postgres
 start-postgres:
 	docker-compose up -d db
+
+
+.PHONY: migrate-up
+migrate-up:
+	sqlx migrate run
+
+.PHONY: migrate-down
+migrate-down:
+	sqlx migrate revert
+
+.PHONY: migrate-create
+migrate-create:
+	sqlx migrate add $(name)
+
+.PHONY: sqlx-prepare
+sqlx-prepare:
+	cargo sqlx prepare

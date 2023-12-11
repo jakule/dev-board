@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, title FROM pr\n            ",
+  "query": "\n            SELECT id, title FROM prs\n            ",
   "describe": {
     "columns": [
       {
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "63f618ba3344c8d55ed530ba925df169c537476dec216fbc4fd96ba0da3c3230"
+  "hash": "660eb362c20b084852266dc4b801d797e84df5169609587830899d9761a45c5c"
 }
