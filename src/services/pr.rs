@@ -43,9 +43,9 @@ pub async fn add_pr(
 
     sqlx::query!(
         r#"
-            INSERT INTO prs (id, title, data, status, score, opened_at)
-            VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO
-            UPDATE SET title = $2, data = $3, status = $4, score = $5, opened_at = $6
+            INSERT INTO prs (id, title, data, status, score, opened_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, NOW()) ON CONFLICT (id) DO
+            UPDATE SET title = $2, data = $3, status = $4, score = $5, opened_at = $6, updated_at = NOW()
             "#,
         id,
         title,
@@ -57,6 +57,21 @@ pub async fn add_pr(
     .execute(db)
     .await?;
     Ok(())
+}
+
+pub async fn get_not_updated() -> AppResult<Vec<Pr>> {
+    let db = DB.get().ok_or(anyhow::anyhow!(""))?;
+
+    let res = sqlx::query_as!(
+        Pr,
+        r#"
+            SELECT id, title, score, opened_at FROM prs
+            WHERE status = 'open' AND updated_at < (select min(updated_at) from prs where status = 'open')
+            "#,
+    )
+    .fetch_all(db)
+    .await?;
+    Ok(res)
 }
 
 pub async fn update_sync_metadata(

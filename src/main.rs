@@ -4,11 +4,10 @@ use crate::github::github::issues::PullRequestState;
 use crate::github::github::Issues;
 use crate::middleware::handle_404::handle_404;
 use crate::routers::router;
-use crate::services::pr::update_sync_metadata;
 use crate::services::pr::{add_pr, get_sync_metadata};
+use crate::services::pr::{get_not_updated, update_sync_metadata};
 use chrono::{DateTime, Utc};
 use config::{CERT_KEY, CFG};
-use futures::StreamExt;
 use graphql_client::GraphQLQuery;
 use reqwest::Client;
 use salvo::catcher::Catcher;
@@ -30,10 +29,10 @@ mod routers;
 mod services;
 mod utils;
 
-async fn process_data(data: <Issues as GraphQLQuery>::ResponseData) {
+async fn process_data(data: <Issues as GraphQLQuery>::ResponseData) -> anyhow::Result<()> {
     let prs = data.repository.unwrap().pull_requests.edges.unwrap();
 
-    let futures = futures::stream::iter(prs).for_each_concurrent(None, |edge| async move {
+    for edge in &prs {
         let data = serde_json::to_string(&edge).unwrap();
         // println!("edge: {}", data);
 
@@ -54,7 +53,7 @@ async fn process_data(data: <Issues as GraphQLQuery>::ResponseData) {
             }
             Err(e) => {
                 println!("error: {:?}", e);
-                return;
+                return Err(anyhow::anyhow!(e));
             }
         }
 
@@ -65,7 +64,7 @@ async fn process_data(data: <Issues as GraphQLQuery>::ResponseData) {
             state_string,
             inference_resp.unwrap(),
         )
-        .await;
+            .await;
         match res {
             Ok(_) => {
                 println!("Successfully added PR");
@@ -74,9 +73,9 @@ async fn process_data(data: <Issues as GraphQLQuery>::ResponseData) {
                 println!("error: {:?}", e);
             }
         }
-    });
+    }
 
-    futures.await;
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -138,13 +137,15 @@ async fn perform_action(mut rx: oneshot::Receiver<()>) -> AnyhowResult<()> {
                         Ok((response, next_cursor)) => {
                             match response.data {
                                 Some(data) => {
-                                    process_data(data).await;
+                                    match process_data(data).await {
+                                        Ok(_) => {}
+                                        Err(e) => {
+                                            println!("error: {:?}", e);
+                                            break;
+                                        }
+                                    }
                                 },
                                 None => println!("No data found in response"),
-                            }
-
-                            if next_cursor.is_none() {
-                                break;
                             }
 
                             println!("next_cursor: {:?}", next_cursor);
@@ -162,12 +163,26 @@ async fn perform_action(mut rx: oneshot::Receiver<()>) -> AnyhowResult<()> {
                                 break;
                             }
 
+                            if cursor.is_none() {
+                                break;
+                            }
+
                             tokio::time::sleep(Duration::from_secs(10)).await
                         },
                         Err(e) => {
                             println!("error: {:?}", e);
+                            break;
                         }
                     }
+
+                    match get_not_updated().await {
+                    Ok(prs) => {
+                        println!("prs: {:?}", prs);
+                    }
+                    Err(e) => {
+                        println!("failed to fetch not updated PRs: {:?}", e);
+                    }
+                }
                 }
             }
         }
