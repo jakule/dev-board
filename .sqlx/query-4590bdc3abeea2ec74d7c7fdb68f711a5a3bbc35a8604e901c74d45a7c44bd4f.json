@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, title, score, opened_at FROM prs\n            WHERE status = 'open' AND updated_at < (select min(updated_at) from prs where status = 'open')\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "score",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "opened_at",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4590bdc3abeea2ec74d7c7fdb68f711a5a3bbc35a8604e901c74d45a7c44bd4f"
+}

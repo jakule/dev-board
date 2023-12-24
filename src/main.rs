@@ -1,7 +1,8 @@
 use crate::db::init_db_conn;
-use crate::github::github::fetch_pull_requests;
-use crate::github::github::issues::PullRequestState;
+use crate::github::github::issues::{IssuesRepositoryPullRequestsEdges, PullRequestState};
 use crate::github::github::Issues;
+use crate::github::github::{fetch_pull_request_by_id, fetch_pull_requests};
+use crate::github::github::issue_by_id::IssueByIdRepositoryPullRequestComments;
 use crate::middleware::handle_404::handle_404;
 use crate::routers::router;
 use crate::services::pr::{add_pr, get_sync_metadata};
@@ -33,45 +34,53 @@ async fn process_data(data: <Issues as GraphQLQuery>::ResponseData) -> anyhow::R
     let prs = data.repository.unwrap().pull_requests.edges.unwrap();
 
     for edge in &prs {
-        let data = serde_json::to_string(&edge).unwrap();
-        // println!("edge: {}", data);
-
-        let pr = edge.as_ref().unwrap().node.as_ref().unwrap();
-
-        let state_string = match pr.state {
-            PullRequestState::OPEN => "OPEN".to_string(),
-            PullRequestState::CLOSED => "CLOSED".to_string(),
-            PullRequestState::MERGED => "MERGED".to_string(),
-            _ => "UNKNOWN".to_string(),
-        };
-
-        let inf_data = serde_json::to_string(&pr).unwrap();
-        let inference_resp = fetch_expected_end_date(inf_data.clone().into()).await;
-        match inference_resp {
-            Ok(ref resp) => {
-                println!("inference_resp: {:?}", resp);
-            }
-            Err(e) => {
-                println!("error: {:?}", e);
-                return Err(anyhow::anyhow!(e));
-            }
+        if let Some(node) = &edge {
+            process_pr(&node).await?;
         }
+    }
 
-        let res = add_pr(
-            pr.number.to_string(),
-            pr.title.clone(),
-            data,
-            state_string,
-            inference_resp.unwrap(),
-        )
-            .await;
-        match res {
-            Ok(_) => {
-                println!("Successfully added PR");
-            }
-            Err(e) => {
-                println!("error: {:?}", e);
-            }
+    Ok(())
+}
+
+pub async fn process_pr(edge: &IssuesRepositoryPullRequestsEdges) -> anyhow::Result<()> {
+    let data = serde_json::to_string(&edge).unwrap();
+    // println!("edge: {}", data);
+
+    let pr = edge.node.as_ref().unwrap();
+
+    let state_string = match pr.state {
+        PullRequestState::OPEN => "OPEN".to_string(),
+        PullRequestState::CLOSED => "CLOSED".to_string(),
+        PullRequestState::MERGED => "MERGED".to_string(),
+        _ => "UNKNOWN".to_string(),
+    };
+
+    let inf_data = serde_json::to_string(&pr).unwrap();
+    let inference_resp = fetch_expected_end_date(inf_data.clone().into()).await;
+    match inference_resp {
+        Ok(ref resp) => {
+            println!("inference_resp: {:?}", resp);
+        }
+        Err(e) => {
+            println!("error: {:?}", e);
+            return Err(anyhow::anyhow!(e));
+        }
+    }
+
+    let res = add_pr(
+        pr.number.to_string(),
+        pr.title.clone(),
+        data,
+        state_string,
+        inference_resp.unwrap(),
+    )
+        .await;
+    match res {
+        Ok(_) => {
+            println!("Successfully added PR");
+        }
+        Err(e) => {
+            println!("error: {:?}", e);
         }
     }
 
@@ -110,6 +119,7 @@ async fn fetch_expected_end_date(
 
 use anyhow::Result as AnyhowResult;
 use serde_derive::{Deserialize, Serialize};
+use crate::github::github::issue_by_id::IssueByIdRepositoryPullRequest;
 
 async fn perform_action(mut rx: oneshot::Receiver<()>) -> AnyhowResult<()> {
     let mut interval = interval(Duration::from_secs(15 * 60));
@@ -132,8 +142,8 @@ async fn perform_action(mut rx: oneshot::Receiver<()>) -> AnyhowResult<()> {
                    println!("cursor: {:?}", cursor);
 
                 loop {
-                    let x = fetch_pull_requests(github_api_token.clone(), cursor.clone()).await;
-                    match x {
+                    let pull_requests = fetch_pull_requests(github_api_token.clone(), cursor.clone()).await;
+                    match pull_requests {
                         Ok((response, next_cursor)) => {
                             match response.data {
                                 Some(data) => {
@@ -176,15 +186,60 @@ async fn perform_action(mut rx: oneshot::Receiver<()>) -> AnyhowResult<()> {
                     }
 
                     match get_not_updated().await {
-                    Ok(prs) => {
-                        println!("prs: {:?}", prs);
+                        Ok(prs) => {
+                            println!("prs: {:?}", prs);
+                            // split into batches of 10
+                            for chunk in prs.chunks(10) {
+                                // Fetch the data from GH API
+                match fetch_pull_request_by_id(github_api_token.clone(), chunk[0].id.parse().unwrap()).await {
+                                    Ok(response) => {
+                                        println!("response: {:?}", response);
+                                        // Update the DB and update the score
+                                        let pr_data = &response.data.as_ref().unwrap().repository.as_ref().unwrap().pull_request.unwrap();
+                                        if let Err(err) = process_pr(pr_data.into()).await {
+                                            println!("error: {:?}", err);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        println!("error: {:?}", e);
+                                    }
+                                }
+                                // Update the DB
+
+                            }
+                        }
+                        Err(e) => {
+                            println!("failed to fetch not updated PRs: {:?}", e);
+                        }
                     }
-                    Err(e) => {
-                        println!("failed to fetch not updated PRs: {:?}", e);
-                    }
-                }
                 }
             }
+        }
+    }
+}
+
+impl From<IssuesRepositoryPullRequestsEdges> for IssueByIdRepositoryPullRequest {
+    fn from(item: IssuesRepositoryPullRequestsEdges) -> Self {
+        let node = item.node.unwrap();
+        IssueByIdRepositoryPullRequest {
+            id: node.id,
+            title: node.title,
+            url: node.url,
+            created_at: node.created_at,
+            updated_at: node.updated_at,
+            merged_at: node.merged_at,
+            body_text: node.body_text,
+            number: node.number,
+            changed_files: node.changed_files,
+            deletions: node.deletions,
+            additions: node.additions,
+            is_draft: node.is_draft,
+            labels: node.labels,
+            base_ref: node.base_ref,
+            state: PullRequestState::CLOSED,
+            author: None,
+            comments: IssueByIdRepositoryPullRequestComments {},
+            timeline_items: IssueByIdRepositoryPullRequestTimelineItems {},
         }
     }
 }

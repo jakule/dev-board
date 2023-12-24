@@ -1,0 +1,4 @@
+indent_style = "Block"
+error_on_unformatted = true
+unstable_features = true
+max_width = 100
