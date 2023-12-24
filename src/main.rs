@@ -1,12 +1,13 @@
 use crate::db::init_db_conn;
+use crate::github::github::issue_by_id::{IssueByIdRepositoryPullRequest, PullRequestState as PullRequestStateById};
 use crate::github::github::issues::{IssuesRepositoryPullRequestsEdges, PullRequestState};
 use crate::github::github::Issues;
 use crate::github::github::{fetch_pull_request_by_id, fetch_pull_requests};
-use crate::github::github::issue_by_id::IssueByIdRepositoryPullRequestComments;
 use crate::middleware::handle_404::handle_404;
 use crate::routers::router;
 use crate::services::pr::{add_pr, get_sync_metadata};
 use crate::services::pr::{get_not_updated, update_sync_metadata};
+use anyhow::Result as AnyhowResult;
 use chrono::{DateTime, Utc};
 use config::{CERT_KEY, CFG};
 use graphql_client::GraphQLQuery;
@@ -14,6 +15,8 @@ use reqwest::Client;
 use salvo::catcher::Catcher;
 use salvo::conn::rustls::{Keycert, RustlsConfig};
 use salvo::prelude::*;
+use serde::Serialize as SerdeSerialize;
+use serde_derive::{Deserialize, Serialize};
 use std::time::Instant;
 use tokio::sync::oneshot;
 use tokio::time::{interval, Duration};
@@ -42,18 +45,56 @@ async fn process_data(data: <Issues as GraphQLQuery>::ResponseData) -> anyhow::R
     Ok(())
 }
 
-pub async fn process_pr(edge: &IssuesRepositoryPullRequestsEdges) -> anyhow::Result<()> {
-    let data = serde_json::to_string(&edge).unwrap();
+pub trait PrData {
+    fn state(&self) -> String;
+    fn number(&self) -> i64;
+
+    fn title(&self) -> String;
+}
+
+impl<'a> PrData for &'a IssuesRepositoryPullRequestsEdges {
+    fn state(&self) -> String {
+        match self.node.as_ref().unwrap().state {
+            PullRequestState::OPEN => "OPEN".to_string(),
+            PullRequestState::CLOSED => "CLOSED".to_string(),
+            PullRequestState::MERGED => "MERGED".to_string(),
+            _ => "UNKNOWN".to_string(),
+        }
+        .to_string()
+    }
+
+    fn number(&self) -> i64 {
+        self.node.as_ref().unwrap().number as i64
+    }
+
+    fn title(&self) -> String {
+        self.node.as_ref().unwrap().title.clone()
+    }
+}
+
+impl PrData for &IssueByIdRepositoryPullRequest {
+    fn state(&self) -> String {
+        match self.state {
+            PullRequestStateById::OPEN => "OPEN".to_string(),
+            PullRequestStateById::CLOSED => "CLOSED".to_string(),
+            PullRequestStateById::MERGED => "MERGED".to_string(),
+            _ => "UNKNOWN".to_string(),
+        }
+        .to_string()
+    }
+
+    fn number(&self) -> i64 {
+        self.number as i64
+    }
+
+    fn title(&self) -> String {
+        self.title.clone()
+    }
+}
+
+pub async fn process_pr<T: PrData + SerdeSerialize>(pr: &T) -> anyhow::Result<()> {
+    let data = serde_json::to_string(&pr).unwrap();
     // println!("edge: {}", data);
-
-    let pr = edge.node.as_ref().unwrap();
-
-    let state_string = match pr.state {
-        PullRequestState::OPEN => "OPEN".to_string(),
-        PullRequestState::CLOSED => "CLOSED".to_string(),
-        PullRequestState::MERGED => "MERGED".to_string(),
-        _ => "UNKNOWN".to_string(),
-    };
 
     let inf_data = serde_json::to_string(&pr).unwrap();
     let inference_resp = fetch_expected_end_date(inf_data.clone().into()).await;
@@ -68,13 +109,13 @@ pub async fn process_pr(edge: &IssuesRepositoryPullRequestsEdges) -> anyhow::Res
     }
 
     let res = add_pr(
-        pr.number.to_string(),
-        pr.title.clone(),
+        pr.number().to_string(),
+        pr.title().clone(),
         data,
-        state_string,
+        pr.state(),
         inference_resp.unwrap(),
     )
-        .await;
+    .await;
     match res {
         Ok(_) => {
             println!("Successfully added PR");
@@ -116,10 +157,6 @@ async fn fetch_expected_end_date(
         }
     }
 }
-
-use anyhow::Result as AnyhowResult;
-use serde_derive::{Deserialize, Serialize};
-use crate::github::github::issue_by_id::IssueByIdRepositoryPullRequest;
 
 async fn perform_action(mut rx: oneshot::Receiver<()>) -> AnyhowResult<()> {
     let mut interval = interval(Duration::from_secs(15 * 60));
@@ -191,12 +228,12 @@ async fn perform_action(mut rx: oneshot::Receiver<()>) -> AnyhowResult<()> {
                             // split into batches of 10
                             for chunk in prs.chunks(10) {
                                 // Fetch the data from GH API
-                match fetch_pull_request_by_id(github_api_token.clone(), chunk[0].id.parse().unwrap()).await {
+                                match fetch_pull_request_by_id(github_api_token.clone(), chunk[0].id.parse().unwrap()).await {
                                     Ok(response) => {
                                         println!("response: {:?}", response);
                                         // Update the DB and update the score
-                                        let pr_data = &response.data.as_ref().unwrap().repository.as_ref().unwrap().pull_request.unwrap();
-                                        if let Err(err) = process_pr(pr_data.into()).await {
+                                        let pr_data = &response.data.as_ref().unwrap().repository.as_ref().unwrap().pull_request.as_ref().unwrap();
+                                        if let Err(err) = process_pr(pr_data).await {
                                             println!("error: {:?}", err);
                                         }
                                     }
@@ -214,32 +251,6 @@ async fn perform_action(mut rx: oneshot::Receiver<()>) -> AnyhowResult<()> {
                     }
                 }
             }
-        }
-    }
-}
-
-impl From<IssuesRepositoryPullRequestsEdges> for IssueByIdRepositoryPullRequest {
-    fn from(item: IssuesRepositoryPullRequestsEdges) -> Self {
-        let node = item.node.unwrap();
-        IssueByIdRepositoryPullRequest {
-            id: node.id,
-            title: node.title,
-            url: node.url,
-            created_at: node.created_at,
-            updated_at: node.updated_at,
-            merged_at: node.merged_at,
-            body_text: node.body_text,
-            number: node.number,
-            changed_files: node.changed_files,
-            deletions: node.deletions,
-            additions: node.additions,
-            is_draft: node.is_draft,
-            labels: node.labels,
-            base_ref: node.base_ref,
-            state: PullRequestState::CLOSED,
-            author: None,
-            comments: IssueByIdRepositoryPullRequestComments {},
-            timeline_items: IssueByIdRepositoryPullRequestTimelineItems {},
         }
     }
 }
