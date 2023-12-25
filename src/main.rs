@@ -1,6 +1,6 @@
 use crate::db::init_db_conn;
 use crate::github::github::issue_by_id::{IssueByIdRepositoryPullRequest, PullRequestState as PullRequestStateById};
-use crate::github::github::issues::{IssuesRepositoryPullRequestsEdges, PullRequestState};
+use crate::github::github::issues::{IssuesRepositoryPullRequestsEdges, IssuesRepositoryPullRequestsEdgesNode, PullRequestState};
 use crate::github::github::Issues;
 use crate::github::github::{fetch_pull_request_by_id, fetch_pull_requests};
 use crate::middleware::handle_404::handle_404;
@@ -38,7 +38,7 @@ async fn process_data(data: <Issues as GraphQLQuery>::ResponseData) -> anyhow::R
 
     for edge in &prs {
         if let Some(node) = &edge {
-            process_pr(&node).await?;
+            process_pr(&node.node.as_ref().unwrap()).await?;
         }
     }
 
@@ -52,9 +52,9 @@ pub trait PrData {
     fn title(&self) -> String;
 }
 
-impl<'a> PrData for &'a IssuesRepositoryPullRequestsEdges {
+impl PrData for &IssuesRepositoryPullRequestsEdgesNode {
     fn state(&self) -> String {
-        match self.node.as_ref().unwrap().state {
+        match self.state {
             PullRequestState::OPEN => "OPEN".to_string(),
             PullRequestState::CLOSED => "CLOSED".to_string(),
             PullRequestState::MERGED => "MERGED".to_string(),
@@ -64,11 +64,11 @@ impl<'a> PrData for &'a IssuesRepositoryPullRequestsEdges {
     }
 
     fn number(&self) -> i64 {
-        self.node.as_ref().unwrap().number as i64
+        self.number as i64
     }
 
     fn title(&self) -> String {
-        self.node.as_ref().unwrap().title.clone()
+        self.title.clone()
     }
 }
 
@@ -100,10 +100,10 @@ pub async fn process_pr<T: PrData + SerdeSerialize>(pr: &T) -> anyhow::Result<()
     let inference_resp = fetch_expected_end_date(inf_data.clone().into()).await;
     match inference_resp {
         Ok(ref resp) => {
-            println!("inference_resp: {:?}", resp);
+            // println!("inference_resp: {:?}", resp);
         }
         Err(e) => {
-            println!("error: {:?}", e);
+            // println!("inference error: {:?}", e);
             return Err(anyhow::anyhow!(e));
         }
     }
@@ -187,7 +187,7 @@ async fn perform_action(mut rx: oneshot::Receiver<()>) -> AnyhowResult<()> {
                                     match process_data(data).await {
                                         Ok(_) => {}
                                         Err(e) => {
-                                            println!("error: {:?}", e);
+                                            println!("process data error: {:?}", e);
                                             break;
                                         }
                                     }
@@ -234,11 +234,11 @@ async fn perform_action(mut rx: oneshot::Receiver<()>) -> AnyhowResult<()> {
                                         // Update the DB and update the score
                                         let pr_data = &response.data.as_ref().unwrap().repository.as_ref().unwrap().pull_request.as_ref().unwrap();
                                         if let Err(err) = process_pr(pr_data).await {
-                                            println!("error: {:?}", err);
+                                            println!("process PR error: {:?}", err);
                                         }
                                     }
                                     Err(e) => {
-                                        println!("error: {:?}", e);
+                                        println!("failed to fetch error: {:?}", e);
                                     }
                                 }
                                 // Update the DB

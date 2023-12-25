@@ -64,6 +64,12 @@ pub async fn fetch_pull_requests(
         .end_cursor
         .clone();
 
+    // TODO:
+    // next_cursor: Some("...")
+    // prs: []
+    // thread 'tokio-runtime-worker' panicked at src/github/github.rs:58:10:
+    // called `Option::unwrap()` on a `None` value
+
     Ok((response_body, next_cursor))
 }
 
