@@ -1,6 +1,8 @@
 use crate::db::init_db_conn;
-use crate::github::github::issue_by_id::{IssueByIdRepositoryPullRequest, PullRequestState as PullRequestStateById};
-use crate::github::github::issues::{IssuesRepositoryPullRequestsEdges, IssuesRepositoryPullRequestsEdgesNode, PullRequestState};
+use crate::github::github::issue_by_id::{
+    IssueByIdRepositoryPullRequest, PullRequestState as PullRequestStateById,
+};
+use crate::github::github::issues::{IssuesRepositoryPullRequestsEdgesNode, PullRequestState};
 use crate::github::github::Issues;
 use crate::github::github::{fetch_pull_request_by_id, fetch_pull_requests};
 use crate::middleware::handle_404::handle_404;
@@ -97,33 +99,16 @@ pub async fn process_pr<T: PrData + SerdeSerialize>(pr: &T) -> anyhow::Result<()
     // println!("edge: {}", data);
 
     let inf_data = serde_json::to_string(&pr).unwrap();
-    let inference_resp = fetch_expected_end_date(inf_data.clone().into()).await;
-    match inference_resp {
-        Ok(ref resp) => {
-            // println!("inference_resp: {:?}", resp);
-        }
-        Err(e) => {
-            // println!("inference error: {:?}", e);
-            return Err(anyhow::anyhow!(e));
-        }
-    }
-
-    let res = add_pr(
+    let inference_resp = fetch_expected_end_date(inf_data.clone().into()).await?;
+    let _ = add_pr(
         pr.number().to_string(),
         pr.title().clone(),
         data,
         pr.state(),
-        inference_resp.unwrap(),
+        inference_resp,
     )
-    .await;
-    match res {
-        Ok(_) => {
-            println!("Successfully added PR");
-        }
-        Err(e) => {
-            println!("error: {:?}", e);
-        }
-    }
+    .await?;
+    println!("Successfully added PR: {}", pr.number().to_string());
 
     Ok(())
 }
