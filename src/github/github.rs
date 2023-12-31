@@ -1,4 +1,5 @@
 use ::reqwest::Client;
+use anyhow::Error;
 use graphql_client::{reqwest::post_graphql, GraphQLQuery, Response};
 
 type URI = String;
@@ -20,6 +21,27 @@ pub struct Issues;
 )]
 pub struct IssueByID;
 
+pub async fn post_graphql2<Q: GraphQLQuery, U: reqwest::IntoUrl>(
+    client: &reqwest::Client,
+    url: U,
+    variables: Q::Variables,
+) -> Result<graphql_client::Response<Q::ResponseData>, anyhow::Error> {
+    let body = Q::build_query(variables);
+    let reqwest_response = client.post(url).json(&body).send().await?;
+
+    let code = &reqwest_response.status();
+    if code != &200 {
+        let text = reqwest_response.text().await?;
+        return Err(anyhow::anyhow!(
+            "code: {}, body: {}",
+            code,
+            text
+        ));
+    }
+
+    reqwest_response.json().await.map_err(|e| e.into())
+}
+
 pub async fn fetch_pull_requests(
     token: String,
     cursor: Option<String>,
@@ -28,7 +50,7 @@ pub async fn fetch_pull_requests(
         Response<<Issues as GraphQLQuery>::ResponseData>,
         Option<String>,
     ),
-    reqwest::Error,
+    anyhow::Error,
 > {
     let variables = issues::Variables {
         cursor: cursor.clone(),
@@ -36,53 +58,27 @@ pub async fn fetch_pull_requests(
         name: "teleport".to_string(),
     };
 
-    let client = Client::builder()
-        .user_agent("graphql-rust/0.10.0")
-        .default_headers(
-            std::iter::once((
-                reqwest::header::AUTHORIZATION,
-                reqwest::header::HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
-            ))
-            .collect(),
-        )
-        .build()?;
-
+    let client = get_http_client(&token)?;
     let response_body =
-        post_graphql::<Issues, _>(&client, "https://api.github.com/graphql", variables)
-            .await
-            .unwrap();
+        post_graphql2::<Issues, _>(&client, "https://api.github.com/graphql", variables)
+            .await?;
 
     let next_cursor = response_body
         .data
         .as_ref()
-        .unwrap()
+        .ok_or(anyhow::anyhow!("No data in response"))?
         .repository
         .as_ref()
-        .unwrap()
+        .ok_or(anyhow::anyhow!("No data in response/repository"))?
         .pull_requests
         .page_info
         .end_cursor
         .clone();
 
-    // TODO:
-    // next_cursor: Some("...")
-    // prs: []
-    // thread 'tokio-runtime-worker' panicked at src/github/github.rs:58:10:
-    // called `Option::unwrap()` on a `None` value
-
     Ok((response_body, next_cursor))
 }
 
-pub async fn fetch_pull_request_by_id(
-    token: String,
-    id: i64,
-) -> Result<Response<<IssueByID as GraphQLQuery>::ResponseData>, reqwest::Error> {
-    let variables = issue_by_id::Variables {
-        id: id,
-        owner: "gravitational".to_string(),
-        name: "teleport".to_string(),
-    };
-
+fn get_http_client(token: &String) -> Result<Client, Error> {
     let client = Client::builder()
         .user_agent("graphql-rust/0.10.0")
         .default_headers(
@@ -90,14 +86,26 @@ pub async fn fetch_pull_request_by_id(
                 reqwest::header::AUTHORIZATION,
                 reqwest::header::HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
             ))
-            .collect(),
+                .collect(),
         )
         .build()?;
+    Ok(client)
+}
 
+pub async fn fetch_pull_request_by_id(
+    token: String,
+    id: i64,
+) -> Result<Response<<IssueByID as GraphQLQuery>::ResponseData>, anyhow::Error> {
+    let variables = issue_by_id::Variables {
+        id,
+        owner: "gravitational".to_string(),
+        name: "teleport".to_string(),
+    };
+
+    let client = get_http_client(&token)?;
     let response_body =
         post_graphql::<IssueByID, _>(&client, "https://api.github.com/graphql", variables)
-            .await
-            .unwrap();
+            .await?;
 
     Ok(response_body)
 }

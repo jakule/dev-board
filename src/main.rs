@@ -203,6 +203,17 @@ async fn perform_action(mut rx: oneshot::Receiver<()>) -> AnyhowResult<()> {
                         },
                         Err(e) => {
                             println!("error: {:?}", e);
+
+                             let result = update_sync_metadata(
+                                "gravitational".to_string(),
+                                "teleport".to_string(),
+                                None,
+                            ).await;
+
+                            if let Err(e) = result {
+                                println!("failed to update sync metadata: {:?}", e);
+                            }
+
                             break;
                         }
                     }
