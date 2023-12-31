@@ -15,7 +15,7 @@ RUN npm run build
 
 # Build the rust backend
 
-FROM rust:1.74-bookworm as backend
+FROM rust:1.75-bookworm as backend
 
 WORKDIR /app
 
