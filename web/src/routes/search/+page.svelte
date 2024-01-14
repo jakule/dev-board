@@ -5,5 +5,4 @@
 
 <div class="text-column">
 	<h1>Semantic search</h1>
-
 </div>

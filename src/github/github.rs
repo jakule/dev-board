@@ -32,11 +32,7 @@ pub async fn post_graphql2<Q: GraphQLQuery, U: reqwest::IntoUrl>(
     let code = &reqwest_response.status();
     if code != &200 {
         let text = reqwest_response.text().await?;
-        return Err(anyhow::anyhow!(
-            "code: {}, body: {}",
-            code,
-            text
-        ));
+        return Err(anyhow::anyhow!("code: {}, body: {}", code, text));
     }
 
     reqwest_response.json().await.map_err(|e| e.into())
@@ -60,8 +56,7 @@ pub async fn fetch_pull_requests(
 
     let client = get_http_client(&token)?;
     let response_body =
-        post_graphql2::<Issues, _>(&client, "https://api.github.com/graphql", variables)
-            .await?;
+        post_graphql2::<Issues, _>(&client, "https://api.github.com/graphql", variables).await?;
 
     let next_cursor = response_body
         .data
@@ -86,7 +81,7 @@ fn get_http_client(token: &String) -> Result<Client, Error> {
                 reqwest::header::AUTHORIZATION,
                 reqwest::header::HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
             ))
-                .collect(),
+            .collect(),
         )
         .build()?;
     Ok(client)
@@ -104,8 +99,7 @@ pub async fn fetch_pull_request_by_id(
 
     let client = get_http_client(&token)?;
     let response_body =
-        post_graphql::<IssueByID, _>(&client, "https://api.github.com/graphql", variables)
-            .await?;
+        post_graphql::<IssueByID, _>(&client, "https://api.github.com/graphql", variables).await?;
 
     Ok(response_body)
 }
