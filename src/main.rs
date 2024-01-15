@@ -2,7 +2,9 @@ use crate::db::init_db_conn;
 use crate::github::github::issue_by_id::{
     IssueByIdRepositoryPullRequest, PullRequestState as PullRequestStateById,
 };
-use crate::github::github::pull_requests::{PullRequestsRepositoryPullRequestsEdgesNode, PullRequestState};
+use crate::github::github::pull_requests::{
+    PullRequestState, PullRequestsRepositoryPullRequestsEdgesNode,
+};
 use crate::github::github::PullRequests;
 use crate::github::github::{fetch_pull_request_by_id, fetch_pull_requests};
 use crate::middleware::handle_404::handle_404;
@@ -66,7 +68,7 @@ impl PrData for &PullRequestsRepositoryPullRequestsEdgesNode {
     }
 
     fn number(&self) -> i64 {
-        self.number as i64
+        self.number
     }
 
     fn title(&self) -> String {
@@ -86,7 +88,7 @@ impl PrData for &IssueByIdRepositoryPullRequest {
     }
 
     fn number(&self) -> i64 {
-        self.number as i64
+        self.number
     }
 
     fn title(&self) -> String {
@@ -100,7 +102,7 @@ pub async fn process_pr<T: PrData + SerdeSerialize>(pr: &T) -> anyhow::Result<()
 
     let inf_data = serde_json::to_string(&pr).unwrap();
     let inference_resp = fetch_expected_end_date(inf_data.clone().into()).await?;
-    let _ = add_pr(
+    add_pr(
         pr.number().to_string(),
         pr.title().clone(),
         data,

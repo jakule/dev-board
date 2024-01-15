@@ -1,32 +1,31 @@
 use ::reqwest::Client;
 use anyhow::Error;
 use graphql_client::{reqwest::post_graphql, GraphQLQuery, Response};
-use crate::github::github::issue_by_id::ResponseData;
 
 type URI = String;
 type DateTime = String;
 
 #[derive(GraphQLQuery)]
 #[graphql(
-schema_path = "src/github/schema.docs.graphql",
-query_path = "src/github/gh_pull_requests.graphql",
-response_derives = "Debug,Serialize"
+    schema_path = "src/github/schema.docs.graphql",
+    query_path = "src/github/gh_pull_requests.graphql",
+    response_derives = "Debug,Serialize"
 )]
 pub struct PullRequests;
 
 #[derive(GraphQLQuery)]
 #[graphql(
-schema_path = "src/github/schema.docs.graphql",
-query_path = "src/github/gh_issues.graphql",
-response_derives = "Debug,Serialize"
+    schema_path = "src/github/schema.docs.graphql",
+    query_path = "src/github/gh_issues.graphql",
+    response_derives = "Debug,Serialize"
 )]
 pub struct Issues;
 
 #[derive(GraphQLQuery)]
 #[graphql(
-schema_path = "src/github/schema.docs.graphql",
-query_path = "src/github/gh_issue_by_id.graphql",
-response_derives = "Debug,Serialize"
+    schema_path = "src/github/schema.docs.graphql",
+    query_path = "src/github/gh_issue_by_id.graphql",
+    response_derives = "Debug,Serialize"
 )]
 pub struct IssueByID;
 
@@ -65,7 +64,8 @@ pub async fn fetch_pull_requests(
 
     let client = get_http_client(&token)?;
     let response_body =
-        post_graphql2::<PullRequests, _>(&client, "https://api.github.com/graphql", variables).await?;
+        post_graphql2::<PullRequests, _>(&client, "https://api.github.com/graphql", variables)
+            .await?;
 
     let next_cursor = response_body
         .data
@@ -125,7 +125,7 @@ fn get_http_client(token: &String) -> Result<Client, Error> {
                 reqwest::header::AUTHORIZATION,
                 reqwest::header::HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
             ))
-                .collect(),
+            .collect(),
         )
         .build()?;
     Ok(client)
