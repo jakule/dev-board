@@ -2,8 +2,8 @@ use crate::db::init_db_conn;
 use crate::github::github::issue_by_id::{
     IssueByIdRepositoryPullRequest, PullRequestState as PullRequestStateById,
 };
-use crate::github::github::issues::{IssuesRepositoryPullRequestsEdgesNode, PullRequestState};
-use crate::github::github::Issues;
+use crate::github::github::pull_requests::{PullRequestsRepositoryPullRequestsEdgesNode, PullRequestState};
+use crate::github::github::PullRequests;
 use crate::github::github::{fetch_pull_request_by_id, fetch_pull_requests};
 use crate::middleware::handle_404::handle_404;
 use crate::routers::router;
@@ -35,7 +35,7 @@ mod routers;
 mod services;
 mod utils;
 
-async fn process_data(data: <Issues as GraphQLQuery>::ResponseData) -> anyhow::Result<()> {
+async fn process_data(data: <PullRequests as GraphQLQuery>::ResponseData) -> anyhow::Result<()> {
     let prs = data.repository.unwrap().pull_requests.edges.unwrap();
 
     for edge in &prs {
@@ -54,7 +54,7 @@ pub trait PrData {
     fn title(&self) -> String;
 }
 
-impl PrData for &IssuesRepositoryPullRequestsEdgesNode {
+impl PrData for &PullRequestsRepositoryPullRequestsEdgesNode {
     fn state(&self) -> String {
         match self.state {
             PullRequestState::OPEN => "OPEN".to_string(),
@@ -238,7 +238,6 @@ async fn perform_action(mut rx: oneshot::Receiver<()>) -> AnyhowResult<()> {
                                     }
                                 }
                                 // Update the DB
-
                             }
                         }
                         Err(e) => {

@@ -1,0 +1,85 @@
+query Issues($owner: String!, $name: String!, $cursor: String){
+  repository(owner: $owner, name: $name) {
+    issues(first: 100, after: $cursor, orderBy: {direction: ASC, field: CREATED_AT}) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      edges {
+        node {
+          title
+          url
+          createdAt
+          updatedAt
+          state
+          author {
+            __typename
+            ... on User {
+              login
+            }
+          }
+          comments {
+            totalCount
+          }
+          timelineItems(itemTypes: [REFERENCED_EVENT, CROSS_REFERENCED_EVENT, ISSUE_COMMENT, CLOSED_EVENT, REOPENED_EVENT, MENTIONED_EVENT], first: 100) {
+            edges {
+              node {
+                __typename
+                ... on ReferencedEvent {
+                  createdAt
+                  isCrossRepository
+                  isDirectReference
+                  subject {
+                    __typename
+                    ... on Issue {
+                      id
+                    }
+                    ... on PullRequest {
+                      id
+                    }
+                  }
+                }
+                ... on CrossReferencedEvent {
+                  createdAt
+                  referencedAt
+                  resourcePath
+                  source {
+                    __typename
+                    ... on Issue {
+                      id
+                    }
+                    ... on PullRequest {
+                      id
+                    }
+                  }
+                  url
+                }
+                ... on IssueComment {
+                  createdAt
+                  body
+                  issue {
+                    id
+                  }
+                  pullRequest {
+                    id
+                  }
+                }
+                ... on ClosedEvent {
+                  createdAt
+                  stateReason
+                }
+                ... on ReopenedEvent {
+                  stateReason
+                }
+                ... on MentionedEvent {
+                  createdAt
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
